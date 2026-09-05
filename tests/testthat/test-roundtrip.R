@@ -1,6 +1,6 @@
 # A small board built from blockr.core / blockr.dock only, so the tests run
-# wherever those two are installed. The production-scale check lives in
-# a downstream repo's own parity check, run against its real boards.
+# wherever those two are installed. The full-scale check lives in a downstream
+# repo's own parity check, run against its real boards.
 
 demo_board <- function() {
   blockr.dock::new_dock_board(

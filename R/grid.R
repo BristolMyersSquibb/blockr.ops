@@ -3,8 +3,8 @@
 # A persisted `dock_grid` has exactly five fields: `orientation`, `children`,
 # `sizes`, `focus` and `rails`. The DSL expresses four of them exactly, which
 # is why the layout needs no approximation and no restriction: measured against
-# a ten-view production board, generated `dock_grid()` source reproduces every
-# view's geometry exactly.
+# a ten-view board, generated `dock_grid()` source reproduces every view's
+# geometry exactly.
 #
 # `focus` is the fifth, and it is deliberately dropped. It is dockView's
 # `activeGroup`, the group that last held keyboard focus; at runtime it only

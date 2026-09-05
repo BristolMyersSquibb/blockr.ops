@@ -4,7 +4,7 @@
 #' left in, and some of what lands there is wrong in ways nothing reports at
 #' runtime. `board_lint()` names them.
 #'
-#' The checks, each grounded in something found on a real production board:
+#' The checks, each grounded in something found on a real board:
 #'
 #' \describe{
 #'   \item{`ambiguous_visible`}{Several `visible.N` payload entries and no exact
@@ -15,6 +15,9 @@
 #'     the block wanted. On the board this was found on, 32 blocks were
 #'     ambiguous and 13 rendered differently because of it. [board_script()]
 #'     with `tidy = TRUE` writes the repaired value.}
+#'   \item{`suffixed_state`}{One suffixed entry and no exact name, so the value
+#'     is reached only by `attr()` partial matching. It works, until the next
+#'     save adds a second one and it does not. [normalize_state()] renames it.}
 #'   \item{`duplicate_state`}{Payload entries duplicated by base name, without
 #'     the ambiguity above. Harmless but not free: on one board 54% of all
 #'     entries, and every one of them lands in the file and in the diff.}
@@ -53,8 +56,12 @@ board_lint <- function(x) {
     unnamed_parts(p[["options"]][["payload"]], "option")
   )
 
-  found <- unlist(lapply(names(parts), function(id) lint_part(parts[[id]], id)),
-                  recursive = FALSE)
+  known <- known_fields(p[["blocks"]][["payload"]])
+
+  found <- unlist(
+    lapply(names(parts), function(id) lint_part(parts[[id]], id, known)),
+    recursive = FALSE
+  )
 
   out <- if (length(found)) {
     data.frame(
@@ -83,7 +90,7 @@ unnamed_parts <- function(x, what) {
                                               character(1))))
 }
 
-lint_part <- function(part, id) {
+lint_part <- function(part, id, known = character()) {
 
   finding <- function(kind, detail) list(kind = kind, id = id, detail = detail)
 
@@ -91,8 +98,21 @@ lint_part <- function(part, id) {
   payload <- part[["payload"]]
   ctor <- part[["constructor"]]
 
-  base <- sub("[.][0-9]+$", "", names(payload))
+  nms <- names(payload)
+  base <- sub("[.][0-9]+$", "", nms)
   dupes <- unique(base[duplicated(base)])
+
+  # A lone `visible.1` with no exact `visible` is not a duplicate, but it only
+  # works through `attr()` partial matching. One more save and it is ambiguous.
+  lone <- setdiff(intersect(base[base != nms], known), c(dupes, nms))
+
+  for (nm in lone) {
+    out <- c(out, list(finding(
+      "suffixed_state",
+      sprintf("`%s` stored only as `%s`; resolves by attr() partial matching",
+              nm, nms[base == nm][[1L]])
+    )))
+  }
 
   for (nm in dupes) {
 

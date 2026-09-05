@@ -13,8 +13,6 @@ Description: Maintenance tooling for a fleet of 'blockr' boards: many of them,
     in a browser; it is for the point where the boards themselves became the
     artefact you maintain.
 License: GPL (>= 3)
-URL: https://github.com/BristolMyersSquibb/blockr.ops
-BugReports: https://github.com/BristolMyersSquibb/blockr.ops/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
@@ -23,12 +21,14 @@ Depends:
 Imports:
     blockr.core,
     blockr.dock,
+    typedjson,
     stats,
     utils
 Suggests:
-    jsonlite,
+    withr,
     testthat (>= 3.0.0)
 Remotes:
     BristolMyersSquibb/blockr.core,
-    BristolMyersSquibb/blockr.dock
+    BristolMyersSquibb/blockr.dock,
+    nbenn/typedjson
 Config/testthat/edition: 3

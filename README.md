@@ -17,14 +17,143 @@ version control.
 pak::pak("BristolMyersSquibb/blockr.ops")
 ```
 
-## Reading and writing
+## Working on a stored board
+
+The whole flow, on one file.
 
 ```r
 library(blockr.ops)
 
-board <- read_board("board.json")
-write_board(board, "board.json")
+board <- read_board("study-0001.json")
 ```
+
+**What is in it.**
+
+```r
+board_stats(board)
+#> board study-0001-v003
+#>
+#> 104 blocks, 103 links, 10 views, 12 stacks, 6 extensions, 11 options
+#> 5347 payload entries, 2432 distinct (2915 duplicated, 55%; see board_lint())
+#>
+#> blocks by package          panels per view
+#>   blockr.viz        46       Study Population   12
+#>   blockr.extra      28       Adverse Events     16
+#>   blockr.dm         21       Laboratory         14
+#>   blockr.dplyr       5       Vital Signs        12
+#>   blockr.pharma      4       ...
+```
+
+**What is wrong with it.**
+
+```r
+board_lint(board)
+#> board lint: 105 findings
+#>
+#>   duplicate_state        63
+#>   ambiguous_visible      32
+#>   suffixed_state          8
+#>   unexported_ctor         2
+#>
+#> first few:
+#>   ambiguous_visible  block arczvqjr  `visible` stored 39 times with no exact
+#>                                       name; attr() lookup is ambiguous
+#>   ... (100 more; the return value is a data frame)
+```
+
+**How far it has drifted from the layout it is supposed to have.** State the
+shape once; the columns are in twelfths, and the rail is in pixels because that
+is what a grid stores.
+
+```r
+tmpl <- layout_template(
+  columns       = c(filters = 2, main = 6),
+  rail_position = "right",
+  rail_size     = rail_twelfths(4)
+)
+
+layout_drift(board, tmpl)
+#> layout drift: 37 findings across 10 views
+#>
+#>   Laboratory        column_sizes  30%/70%   -> 25%/75%
+#>   Laboratory        focus         block_panel-ebyeagxk -> dropped
+#>   Laboratory        nested_sizes  44%/56%   -> 50%/50%
+#>   Laboratory        rail_size     607       -> 533
+#>   Study Population  column_sizes  24%/76%   -> 25%/75%
+#>   Exposure          column_sizes  17%/83%   -> 25%/75%
+#>   Data              column_count  3 columns -> 2 columns; left alone
+#>   ...
+```
+
+Ten views intended to share one column ratio had ten different ones. That is
+what a year of people dragging sashes looks like.
+
+**Put it back.**
+
+```r
+clean <- normalize_board(board, tmpl)
+
+board_lint(clean)
+#> board lint: 2 findings
+#>   unexported_ctor  2
+
+layout_drift(clean, tmpl)
+#> layout drift: 1 findings across 1 views
+#>   Data  column_count  3 columns -> 2 columns; left alone
+
+write_board(clean, "study-0001.json")
+#> 419,663 -> 299,088 bytes
+```
+
+The two survivors are both refusals rather than failures. The Data view has
+three columns on purpose, so it is left alone and named. The two
+`unexported_ctor` findings need an `@export` in blockr.assistant, not a
+cleanup.
+
+**Check it still round-trips**, and read it as R.
+
+```r
+check_board_script(clean, rename = FALSE, tidy = FALSE)
+#> board script round trip: ok
+#>   blocks ok | links ok | stacks ok | options ok
+#>   extensions ok | views ok | grids ok
+
+write_board_script(clean, "study-0001.R", name = "study_board")
+```
+
+### One thing that will bite you
+
+`read_board()` rebuilds the blocks, so **every package the board's blocks come
+from has to be installed**. A board carrying a `blockr.pharma` block will not
+load without blockr.pharma, and the error names the package. `board_stats()`
+tells you which packages a board needs, but only once it has loaded, so for a
+board you cannot open, read the JSON directly and look at the `constructor`
+entries.
+
+## Normalizing
+
+`normalize_board()` is the two halves together. Run them separately when you
+only want one.
+
+| | what it changes | what a user would notice |
+|---|---|---|
+| `normalize_layout()` | column ratios, nested split ratios, rail width and collapsed state, drops `focus` | panels change size |
+| `normalize_state()` | collapses duplicate payload entries | 14 blocks stop showing sections they were not saved with |
+
+Neither moves a block between columns, adds or removes a panel from a view, or
+touches block configuration. A view whose column count does not match the
+template is left alone and reported: three columns where the template says two
+is more likely a considered exception than drift.
+
+`normalize_state()` is the one that changes what people see, and that is the
+repair rather than a side effect. Look at `board_lint()`'s `ambiguous_visible`
+rows before writing.
+
+`layout_drift()` and `board_lint()` are the report-only halves. Both return data
+frames, so `subset(board_lint(board), kind == "ambiguous_visible")` gets you the
+list.
+
+## Reading and writing
 
 A board file is JSON, and reading it wrong is easy to do quietly.
 `jsonlite::fromJSON()` simplifies by default: a one-element list becomes a
@@ -35,40 +164,10 @@ failure is not always an error; sometimes the board just loads wrong.
 `write_board()` writes pretty, because a board file that diffs is the point of
 keeping it in git.
 
-## What a board holds
+## The lint checks
 
-```r
-board_stats(board)
-#> board demo-board
-#>
-#> 42 blocks, 41 links, 4 views, 5 stacks, 3 extensions, 6 options
-#> 1980 payload entries, 900 distinct (1080 duplicated, 55%; see board_lint())
-#>
-#> blocks by package
-#>   blockr.core                    20
-#>   blockr.dock                    12
-#>   blockr.extra                   10
-#>
-#> panels per view
-#>   Overview                        8
-#>   Detail                         12
-#>   ...
-```
-
-## What is wrong with it
-
-```r
-board_lint(board)
-#> board lint: 40 findings
-#>
-#>   duplicate_state        26
-#>   ambiguous_visible      12
-#>   unexported_ctor         2
-```
-
-Returns a data frame, so `subset(issues, kind == "ambiguous_visible")` gets you
-the list. The checks, each grounded in something found on a real production
-board:
+`board_lint()` returns a data frame with `kind`, `id` and `detail`. The
+checks, each grounded in something found on a real board:
 
 **`ambiguous_visible`.** Several `visible.N` payload entries and no exact
 `visible`. `visible_sections()` in blockr.dock reads `attr(blk, "visible")`, and
@@ -181,9 +280,9 @@ does not cover.
 A persisted `dock_grid` has exactly five fields: `orientation`, `children`,
 `sizes`, `focus` and `rails`. The authoring DSL (`dock_grid()`, `group()`,
 `panels()`, `rail()`) expresses four of them exactly, including rail width,
-collapsed state and open tab. Measured against a ten-view production board,
-generated `dock_grid()` source reproduces every view's geometry. The layout
-needs no approximation and no restriction of what the UI may produce.
+collapsed state and open tab, so generated `dock_grid()` source reproduces a
+view's geometry exactly. The layout needs no approximation and no restriction
+of what the UI may produce.
 
 `focus` is the fifth and is deliberately dropped. It is dockView's
 `activeGroup`, the group that last held keyboard focus. At runtime it only feeds

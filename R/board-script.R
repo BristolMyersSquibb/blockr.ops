@@ -207,6 +207,8 @@ blocks_src <- function(blocks, views, bmap, tidy, group = TRUE,
     names(blocks)
   }
 
+  known <- known_fields(blocks)
+
   chunks <- character()
   section <- ""
 
@@ -226,7 +228,7 @@ blocks_src <- function(blocks, views, bmap, tidy, group = TRUE,
     payload <- blk[["payload"]]
 
     if (isTRUE(tidy)) {
-      payload <- collapse_state(payload)
+      payload <- collapse_state(payload, known)
     }
 
     chunks <- c(

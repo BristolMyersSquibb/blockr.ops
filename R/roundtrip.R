@@ -78,10 +78,13 @@ equivalence_report <- function(spec, rebuilt, tidy) {
   t1 <- stats::setNames(unname(ctors(b1)), unname(bmap[names(b1)]))
   t2 <- ctors(b2)
 
-  payloads <- function(b) lapply(b, function(x) {
-    p <- if (isTRUE(tidy)) collapse_state(x[["payload"]]) else x[["payload"]]
-    p[sort(names(p))]
-  })
+  payloads <- function(b) {
+    known <- known_fields(b)
+    lapply(b, function(x) {
+      p <- if (isTRUE(tidy)) collapse_state(x[["payload"]], known) else x[["payload"]]
+      p[sort(names(p))]
+    })
+  }
   p1 <- lapply(payloads(b1), remap_payload, map = bmap)
   names(p1) <- unname(bmap[names(b1)])
   p2 <- payloads(b2)

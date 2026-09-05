@@ -19,7 +19,7 @@ left in, and some of what lands there is wrong in ways nothing reports at
 runtime. \code{board_lint()} names them.
 }
 \details{
-The checks, each grounded in something found on a real production board:
+The checks, each grounded in something found on a real board:
 
 \describe{
 \item{\code{ambiguous_visible}}{Several \code{visible.N} payload entries and no exact
@@ -30,6 +30,9 @@ every one of these looks wrong: the fallback sometimes happens to be what
 the block wanted. On the board this was found on, 32 blocks were
 ambiguous and 13 rendered differently because of it. \code{\link[=board_script]{board_script()}}
 with \code{tidy = TRUE} writes the repaired value.}
+\item{\code{suffixed_state}}{One suffixed entry and no exact name, so the value
+is reached only by \code{attr()} partial matching. It works, until the next
+save adds a second one and it does not. \code{\link[=normalize_state]{normalize_state()}} renames it.}
 \item{\code{duplicate_state}}{Payload entries duplicated by base name, without
 the ambiguity above. Harmless but not free: on one board 54\% of all
 entries, and every one of them lands in the file and in the diff.}

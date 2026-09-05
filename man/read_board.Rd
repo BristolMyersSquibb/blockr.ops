@@ -12,7 +12,7 @@ write_board(x, file, pretty = TRUE, ...)
 \arguments{
 \item{file}{Path to a board JSON file.}
 
-\item{...}{Passed to \code{jsonlite::fromJSON()} / \code{jsonlite::toJSON()}.}
+\item{...}{Passed to \code{typedjson::json_read()} / \code{typedjson::json_write()}.}
 
 \item{x}{A board.}
 
@@ -22,17 +22,26 @@ write_board(x, file, pretty = TRUE, ...)
 \code{read_board()} a board; \code{write_board()} its \code{file}, invisibly.
 }
 \description{
-A board file is JSON, and reading it wrong is easy to do quietly.
-\code{jsonlite::fromJSON()} simplifies by default: a one-element list becomes a
-scalar, a list of equal-length lists becomes a data frame, and a payload that
-went in as a list comes back as something \code{blockr_deser()} cannot rebuild. The
-failure is not always an error; sometimes the board just loads wrong.
-\code{read_board()} passes the arguments that keep the structure intact.
+These go through 'typedjson', which is what blockr.core's own serdes plugin
+uses (\code{read_json()} / \code{write_json()} in \code{plugin-serdes.R}). Reading and
+writing a board any other way means reading and writing it differently from
+the app.
 }
 \details{
+It also makes the round trip exact. Plain JSON cannot express an empty typed
+vector, so through 'jsonlite' a \code{character(0)} comes back \code{NULL}; on a real
+board that silently retyped three blocks and a grid. 'typedjson' annotates
+what JSON cannot carry -- empty typed vectors, integer against double, typed
+\code{NA}, non-finite numbers, attributes -- and leaves everything else as
+ordinary readable JSON, so the file still diffs.
+
+\code{read_board()} also reads plain JSON, so boards written before the switch
+still load. The reverse does not hold: 'jsonlite' cannot read a typedjson
+board (it hands back a typed \code{Inf} in a form the option constructor
+rejects), so writing one is a one-way move.
+
 \code{write_board()} writes pretty by default, because a board file that diffs is
-the point of keeping it in version control, and \code{null = "null"} so an option
-holding \code{NULL} survives the trip.
+the point of keeping it in version control.
 }
 \examples{
 \dontrun{
