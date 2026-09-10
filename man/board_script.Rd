@@ -73,13 +73,11 @@ each other
 keys and \code{active}
 \item duplicate \code{visible.N} state entries are collapsed (see \code{collapse_state()}
 for why they are not merely noise)
-\item a code block's \code{script} is emitted one source line per element, so it reads
-as the code it is
+\item a code block's \code{script} is emitted as a raw string literal, so it reads as
+the code it is while still round-tripping to the stored line vector
 \item blocks are grouped under the view that first shows them
 }
 
-Do not run styler on the result. It reflows the code-block script vectors
-into a blob; the layout here is deliberate.
 }
 \examples{
 \dontrun{

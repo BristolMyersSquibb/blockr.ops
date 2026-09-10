@@ -34,6 +34,30 @@ test_that("a renamed, tidied board round-trips as an equivalent board", {
   expect_true(check_board_script(demo_board())$ok)
 })
 
+test_that("code block scripts are emitted as raw strings and round-trip exactly", {
+  skip_if_not_installed("blockr.extra")
+
+  script <- c(
+    "# raw delimiter probes: )\" and )-\"",
+    "x <- \"\\\\n is literal text here\"",
+    "{",
+    "  data",
+    "}"
+  )
+  board <- blockr.dock::new_dock_board(
+    blocks = c(
+      data = blockr.core::new_dataset_block("iris", block_name = "Source"),
+      code = blockr.extra::new_code_block(script = script, block_name = "Script")
+    ),
+    links = c(l1 = blockr.core::new_link("data", "code"))
+  )
+
+  src <- board_script(board, rename = FALSE, tidy = FALSE)
+  expect_match(src, "script = script_lines(r\"--(", fixed = TRUE)
+  expect_false(grepl("script = c(", src, fixed = TRUE))
+  expect_true(check_board_script(board, rename = FALSE, tidy = FALSE)$ok)
+})
+
 test_that("renaming slugs block ids from their display names", {
   src <- board_script(demo_board())
   expect_match(src, "source_data = blockr.core::new_dataset_block", fixed = TRUE)

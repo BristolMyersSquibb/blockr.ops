@@ -257,15 +257,16 @@ payload fields.
 
 **Collapsed state**, so a block comes back with the `visible` setting it lost.
 
-**Code blocks as code.** A code block's `script` is a character vector, one
-element per source line. Deparsed at width it becomes a wrapped blob; emitted
-one element per line it reads as the R it is.
+**Code blocks as code.** A code block's `script` is stored as a character
+vector, one element per source line. Deparsed at width it becomes a wrapped
+blob; emitted as a raw string literal it reads as the R it is, then reconstructs
+the stored line vector when the board is rebuilt.
 
 **Blocks grouped by view.** The file follows the app rather than the storage
 order, under a comment naming the view that first shows each block.
 
-Do not run styler on the output. It reflows the code-block script vectors back
-into a blob.
+Code-block scripts are emitted as raw string literals, so formatters no longer
+need to preserve a long `c("line", ...)` vector shape.
 
 `board_script()` also takes `ref_fields`, the payload fields that hold a block
 id. Only those are rewritten when ids are renamed, because a payload value can

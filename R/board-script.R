@@ -14,12 +14,9 @@
 #'   keys and `active`
 #' * duplicate `visible.N` state entries are collapsed (see `collapse_state()`
 #'   for why they are not merely noise)
-#' * a code block's `script` is emitted one source line per element, so it reads
-#'   as the code it is
+#' * a code block's `script` is emitted as a raw string literal, so it reads as
+#'   the code it is while still round-tripping to the stored line vector
 #' * blocks are grouped under the view that first shows them
-#'
-#' Do not run styler on the result. It reflows the code-block script vectors
-#' into a blob; the layout here is deliberate.
 #'
 #' @param x A board, or the list `blockr.core::blockr_ser()` produces for one.
 #' @param name Name of the function the script defines.
@@ -76,22 +73,20 @@ board_script <- function(x, name = "board", rename = TRUE, tidy = TRUE,
     warn_dangling(blocks, bmap, ref_fields)
   }
 
+  body <- c(
+    if (has_script_blocks(blocks)) script_lines_src(),
+    blocks_src(blocks, views, bmap, tidy, group, ref_fields),
+    links_src(p[["links"]][["payload"]], bmap),
+    stacks_src(p[["stacks"]][["payload"]], bmap),
+    views_src(views, bmap, vmap),
+    grids_src(grids, bmap, vmap),
+    extensions_src(p[["extensions"]][["payload"]], bmap),
+    options_src(p[["options"]][["payload"]])
+  )
+
   src <- paste0(
     name, " <- function() {\n\n",
-    indent(
-      paste(
-        c(
-          blocks_src(blocks, views, bmap, tidy, group, ref_fields),
-          links_src(p[["links"]][["payload"]], bmap),
-          stacks_src(p[["stacks"]][["payload"]], bmap),
-          views_src(views, bmap, vmap),
-          grids_src(grids, bmap, vmap),
-          extensions_src(p[["extensions"]][["payload"]], bmap),
-          options_src(p[["options"]][["payload"]])
-        ),
-        collapse = "\n\n"
-      )
-    ),
+    indent(paste(body, collapse = "\n\n")),
     "\n\n",
     indent(board_call_src(unname(vmap[[p[["views"]][["payload"]][["active"]]]]))),
     "\n}\n"
@@ -146,8 +141,15 @@ default_header <- function(spec, rename) {
       "# match. Set `rename = FALSE` to keep them."
     ),
     "#",
-    "# Do not run styler on this file: it reflows the code-block scripts."
+    "# Code-block scripts are emitted as raw string literals and reconstructed",
+    "# as the stored character vector of source lines."
   )
+}
+
+has_script_blocks <- function(blocks) {
+  any(vapply(blocks, function(blk) {
+    emits_raw_script(blk[["constructor"]], blk[["payload"]])
+  }, logical(1)))
 }
 
 warn_dangling <- function(blocks, bmap, ref_fields) {
